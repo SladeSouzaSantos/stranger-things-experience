@@ -1,0 +1,107 @@
+name: Deploy Stranger Things Experience
+
+on:
+  push:
+    branches: [ main, dev ] # Ajustado para 'main', que é o padrão atual do GitHub
+
+jobs:
+  # 🔍 JOB 1: VALIDAÇÃO (LINT)
+  lint:
+    name: Lint Code Base
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Lint HTML, CSS and JS
+        uses: github/super-linter@v5
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_HTML: true
+          VALIDATE_CSS: true
+          VALIDATE_JAVASCRIPT_ES: true
+
+  # 🏗️ JOB 2: BUILD E PUSH (DOCKER)
+  build:
+    name: Build and Push Image
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # IMPORTANTE: Garante que a imagem suporte o teu Raspberry Pi (arm64/v7)
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/${{ github.repository }}:latest
+
+  # 🚀 JOB 3: DEPLOY (VIA TAILSCALE + SSH)
+  deploy:
+    name: Deploy to Swarm
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Execute Remote Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }} # O IP do teu servidor na rede Tailscale
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+              echo "🚀 Atualizando Produção - Stranger Things..."
+              # Ajusta para a pasta onde vais guardar os ficheiros .yml no servidor
+              mkdir -p /app/st-prod
+              cd /app/st-prod
+              docker stack deploy -c docker-stack.yml st-prod --with-registry-auth --resolve-image always --prune
+            else
+              echo "🧪 Atualizando Desenvolvimento - Stranger Things..."
+              mkdir -p /app/st-dev
+              cd /app/st-dev
+              docker stack deploy -c docker-stack-dev.yml st-dev --with-registry-auth --resolve-image always --prune
+            fi
+
+  # ✅ JOB 4: VERIFICAÇÃO (HEALTH CHECK)
+  healthcheck:
+    name: Verify Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Wait and Check URL
+        run: |
+          echo "⏳ Aguardando container estabilizar..."
+          sleep 30
+          # Aqui deves testar a porta que definiste no docker-stack.yml (ex: 8083)
+          # curl -f http://${{ secrets.SERVER_IP }}:8083 || exit 1

@@ -1,0 +1,21 @@
+cat <<EOF > /app/st-dev/docker-stack-dev.yml
+version: '3.8'
+services:
+  st-site-dev:
+    image: ghcr.io/sladesouzasantos/stranger-things-experience:latest
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8084:80"
+    networks:
+      - phass-network
+
+networks:
+  phass-network:
+    external: true
+EOF
