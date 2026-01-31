@@ -19,7 +19,7 @@ Este projeto é uma experiência visual imersiva baseada na série Stranger Thin
 ## 📦 Como rodar o projeto
 1. Clone o repositório:
    ```bash
-   git clone [https://github.com/seu-usuario/nome-do-projeto.git](https://github.com/seu-usuario/nome-do-projeto.git)
+   git clone [https://github.com/SladeSouzaSantos/stranger-things-experience.git](https://github.com/SladeSouzaSantos/stranger-things-experience.git)
    ```
 
 2. Abra o arquivo index.html no seu navegador ou use a extensão Live Server no VS Code.
