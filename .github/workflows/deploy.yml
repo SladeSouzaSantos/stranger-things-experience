@@ -55,7 +55,7 @@ jobs:
           push: true
           # IMPORTANTE: Garante que a imagem suporte o teu Raspberry Pi (arm64/v7)
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/sladesouzasantos/stranger-things-experience:latest
 
   # 🚀 JOB 3: DEPLOY (VIA TAILSCALE + SSH)
   deploy:
